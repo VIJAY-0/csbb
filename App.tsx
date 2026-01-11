@@ -68,9 +68,7 @@ export default function App() {
     const val = e.target.value;
     setJsonText(val);
     try {
-      const parsed = JSON.parse(val) as SandboxPayload;
-      // If parsing is successful, we can optionally sync back to form state
-      // For now, we'll just clear the error
+      JSON.parse(val);
       setJsonError(null);
     } catch (err: any) {
       setJsonError(err.message);
@@ -80,7 +78,6 @@ export default function App() {
   const applyManualJson = () => {
     try {
       const parsed = JSON.parse(jsonText) as SandboxPayload;
-      // Sync back to form state
       if (parsed.github_url !== undefined) setGithubUrl(parsed.github_url);
       if (parsed.cpu !== undefined) setCpu(parsed.cpu);
       if (parsed.memory !== undefined) setMemory(parsed.memory);
@@ -99,8 +96,6 @@ export default function App() {
   const handleCreateClone = (e: React.FormEvent) => {
     e.preventDefault();
     if (!githubUrl.trim()) return;
-    
-    // Ensure we have a task ID if not manually set
     if (!taskId) setTaskId(generateTaskId());
     setStep(Step.SERVER_CONFIG);
     setStatus('INITIALIZING');
@@ -116,7 +111,7 @@ export default function App() {
   const reset = () => {
     setStep(Step.GITHUB_SETUP);
     setStatus('DISCONNECTED');
-    setGithubUrl('');
+    setGithubUrl('https://github.com/VIJAY-0/Mysql-Containers-Orchestration');
     setServerUrl('');
     setTaskId('');
     setNetworkGroup('');
@@ -125,9 +120,9 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-200">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-slate-900/50 border-b border-slate-800 backdrop-blur-md">
+    <div className="flex flex-col h-screen bg-slate-950 text-slate-200">
+      {/* Header - Fixed height */}
+      <header className="flex-shrink-0 flex items-center justify-between px-6 py-4 bg-slate-900/50 border-b border-slate-800 backdrop-blur-md z-10">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-500/20">
             <Layout className="w-6 h-6 text-white" />
@@ -159,12 +154,13 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden p-6 relative flex flex-col gap-6">
-        <div className="max-w-6xl mx-auto w-full h-full flex flex-col">
+      {/* Main Content Area - Scrollable */}
+      <main className="flex-1 overflow-y-auto scroll-smooth custom-scrollbar p-6">
+        <div className="max-w-6xl mx-auto w-full min-h-full flex flex-col pb-12">
           
           {/* STEP 1: GITHUB SETUP */}
           {step === Step.GITHUB_SETUP && (
-            <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in slide-in-from-bottom-4 duration-500 py-8">
               <div className="w-full max-w-2xl bg-slate-900/40 border border-slate-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                   <Github className="w-32 h-32" />
@@ -191,7 +187,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-2">Network Group</label>
                       <div className="relative group">
@@ -220,7 +216,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-xl">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2 text-slate-500">
@@ -265,7 +261,7 @@ export default function App() {
 
           {/* STEP 2: SERVER CONFIG */}
           {step === Step.SERVER_CONFIG && (
-            <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in slide-in-from-bottom-4 duration-500 py-8">
               <div className="w-full max-w-lg bg-slate-900/40 border border-slate-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl relative">
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
@@ -351,8 +347,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* VSCode Stream Container */}
-              <div className="flex-1 relative bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl group flex flex-col">
+              {/* VSCode Stream Container - Fixed aspect ratio to prevent layout jumping */}
+              <div className="flex-none aspect-video bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl group flex flex-col min-h-[500px]">
                 <div className="h-8 bg-slate-950 border-b border-slate-800 flex items-center px-4 justify-between">
                   <div className="flex items-center gap-2">
                     <div className="flex gap-1.5">
@@ -390,7 +386,7 @@ export default function App() {
           )}
 
           {/* JSON PREVIEW SECTION */}
-          <div className="mt-4">
+          <div className="mt-8 flex-shrink-0">
             <div className="flex items-center justify-between p-3 bg-slate-900/40 border border-slate-800 rounded-xl">
               <button 
                 onClick={() => setIsJsonOpen(!isJsonOpen)}
@@ -429,7 +425,7 @@ export default function App() {
                 <div className="relative">
                   {isEditingJson ? (
                     <textarea 
-                      className={`w-full h-48 p-5 bg-slate-950 border ${jsonError ? 'border-rose-500/50' : 'border-indigo-500/30'} rounded-xl font-mono text-[11px] text-indigo-400/90 leading-relaxed focus:outline-none focus:border-indigo-500 transition-colors resize-none shadow-inner`}
+                      className={`w-full h-64 p-5 bg-slate-950 border ${jsonError ? 'border-rose-500/50' : 'border-indigo-500/30'} rounded-xl font-mono text-[11px] text-indigo-400/90 leading-relaxed focus:outline-none focus:border-indigo-500 transition-colors resize-none shadow-inner`}
                       value={jsonText}
                       onChange={handleJsonChange}
                       spellCheck={false}
@@ -461,12 +457,11 @@ export default function App() {
               </div>
             )}
           </div>
-
         </div>
       </main>
 
-      {/* Footer Branding */}
-      <footer className="px-6 py-3 flex items-center justify-between border-t border-slate-900 bg-slate-950/80 backdrop-blur-md">
+      {/* Footer Branding - Fixed height */}
+      <footer className="flex-shrink-0 px-6 py-3 flex items-center justify-between border-t border-slate-900 bg-slate-950/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-4 text-[9px] text-slate-600 uppercase tracking-[0.2em] font-bold">
           <span className="hover:text-slate-400 transition-colors cursor-default">System v3.4.1</span>
           <div className="w-1 h-1 bg-slate-800 rounded-full" />
@@ -479,6 +474,23 @@ export default function App() {
           </span>
         </div>
       </footer>
+
+      {/* Custom Scrollbar CSS */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #020617;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #1e293b;
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #334155;
+        }
+      `}</style>
     </div>
   );
 }
