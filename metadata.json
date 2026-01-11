@@ -1,0 +1,8 @@
+{
+  "name": "Sandbox Orchestrator",
+  "description": "A professional developer dashboard for managing isolated sandbox environments with GitHub integration and embedded VS Code server streaming.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
