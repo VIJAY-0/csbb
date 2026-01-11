@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Github, 
   Server, 
@@ -16,7 +16,10 @@ import {
   CheckCircle2,
   XCircle,
   Shield,
-  Network
+  Network,
+  Edit3,
+  Save,
+  AlertCircle
 } from 'lucide-react';
 import { SandboxStatus, SandboxPayload, Step } from './types';
 
@@ -28,7 +31,7 @@ export default function App() {
   const [status, setStatus] = useState<SandboxStatus>('DISCONNECTED');
   
   // Form State
-  const [githubUrl, setGithubUrl] = useState('');
+  const [githubUrl, setGithubUrl] = useState('https://github.com/VIJAY-0/Mysql-Containers-Orchestration');
   const [serverUrl, setServerUrl] = useState('');
   const [taskId, setTaskId] = useState('');
   const [networkGroup, setNetworkGroup] = useState('');
@@ -36,13 +39,69 @@ export default function App() {
   const [cpu, setCpu] = useState(1);
   const [memory, setMemory] = useState(1024);
   
+  // JSON Direct Edit State
   const [isJsonOpen, setIsJsonOpen] = useState(false);
+  const [isEditingJson, setIsEditingJson] = useState(false);
+  const [jsonText, setJsonText] = useState('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
+
+  // Compute standard payload
+  const currentPayload: SandboxPayload = useMemo(() => ({
+    task_id: taskId || 'pending',
+    cpu: cpu,
+    memory: memory,
+    network_group: networkGroup,
+    isolated: isolated,
+    github_url: githubUrl,
+    ...(serverUrl ? { server_url: serverUrl } : {})
+  }), [taskId, cpu, memory, networkGroup, isolated, githubUrl, serverUrl]);
+
+  // Sync JSON text when form state changes (if not actively editing JSON)
+  useEffect(() => {
+    if (!isEditingJson) {
+      setJsonText(JSON.stringify(currentPayload, null, 2));
+      setJsonError(null);
+    }
+  }, [currentPayload, isEditingJson]);
+
+  const handleJsonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setJsonText(val);
+    try {
+      const parsed = JSON.parse(val) as SandboxPayload;
+      // If parsing is successful, we can optionally sync back to form state
+      // For now, we'll just clear the error
+      setJsonError(null);
+    } catch (err: any) {
+      setJsonError(err.message);
+    }
+  };
+
+  const applyManualJson = () => {
+    try {
+      const parsed = JSON.parse(jsonText) as SandboxPayload;
+      // Sync back to form state
+      if (parsed.github_url !== undefined) setGithubUrl(parsed.github_url);
+      if (parsed.cpu !== undefined) setCpu(parsed.cpu);
+      if (parsed.memory !== undefined) setMemory(parsed.memory);
+      if (parsed.network_group !== undefined) setNetworkGroup(parsed.network_group);
+      if (parsed.isolated !== undefined) setIsolated(parsed.isolated);
+      if (parsed.task_id !== undefined) setTaskId(parsed.task_id);
+      if (parsed.server_url !== undefined) setServerUrl(parsed.server_url);
+      
+      setIsEditingJson(false);
+      setJsonError(null);
+    } catch (err: any) {
+      setJsonError("Invalid JSON structure: " + err.message);
+    }
+  };
 
   const handleCreateClone = (e: React.FormEvent) => {
     e.preventDefault();
     if (!githubUrl.trim()) return;
     
-    setTaskId(generateTaskId());
+    // Ensure we have a task ID if not manually set
+    if (!taskId) setTaskId(generateTaskId());
     setStep(Step.SERVER_CONFIG);
     setStatus('INITIALIZING');
   };
@@ -54,16 +113,6 @@ export default function App() {
     setStep(Step.ORCHESTRATOR);
   };
 
-  const currentPayload: SandboxPayload = {
-    task_id: taskId || 'pending',
-    cpu: cpu,
-    memory: memory,
-    network_group: networkGroup,
-    isolated: isolated,
-    github_url: githubUrl,
-    server_url: serverUrl || undefined
-  };
-
   const reset = () => {
     setStep(Step.GITHUB_SETUP);
     setStatus('DISCONNECTED');
@@ -72,6 +121,7 @@ export default function App() {
     setTaskId('');
     setNetworkGroup('');
     setIsolated(true);
+    setIsEditingJson(false);
   };
 
   return (
@@ -341,31 +391,73 @@ export default function App() {
 
           {/* JSON PREVIEW SECTION */}
           <div className="mt-4">
-            <button 
-              onClick={() => setIsJsonOpen(!isJsonOpen)}
-              className="w-full flex items-center justify-between p-3 bg-slate-900/40 border border-slate-800 rounded-xl hover:bg-slate-900/60 transition-all group"
-            >
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between p-3 bg-slate-900/40 border border-slate-800 rounded-xl">
+              <button 
+                onClick={() => setIsJsonOpen(!isJsonOpen)}
+                className="flex items-center gap-3 group transition-all"
+              >
                 <div className="p-1.5 bg-slate-800 rounded-md group-hover:bg-indigo-500/20 transition-colors">
                   <Terminal className="w-4 h-4 text-indigo-400" />
                 </div>
                 <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Redis Published Payload</span>
-              </div>
-              <div className="flex items-center gap-2">
+                {isJsonOpen ? <ChevronUp className="w-4 h-4 text-slate-600" /> : <ChevronDown className="w-4 h-4 text-slate-600" />}
+              </button>
+              
+              <div className="flex items-center gap-3">
                  <span className="text-[9px] font-mono text-slate-600 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">channel: worker:codesb:start</span>
-                 {isJsonOpen ? <ChevronUp className="w-4 h-4 text-slate-600" /> : <ChevronDown className="w-4 h-4 text-slate-600" />}
+                 {isJsonOpen && (
+                   <button 
+                     onClick={() => {
+                        if (isEditingJson) {
+                          applyManualJson();
+                        } else {
+                          setIsEditingJson(true);
+                        }
+                     }}
+                     className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${
+                       isEditingJson ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
+                     }`}
+                   >
+                     {isEditingJson ? <><Save className="w-3 h-3" /> APPLY CHANGES</> : <><Edit3 className="w-3 h-3" /> EDIT PAYLOAD</>}
+                   </button>
+                 )}
               </div>
-            </button>
+            </div>
             
             {isJsonOpen && (
-              <div className="mt-2 p-5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-[11px] overflow-x-auto animate-in slide-in-from-top-2 duration-200 shadow-inner">
-                <div className="flex justify-between items-center mb-4 border-b border-slate-900 pb-2">
-                   <span className="text-slate-600">application/json</span>
-                   <span className="text-[10px] text-indigo-500/50">READY FOR PUBLISH</span>
+              <div className="mt-2 flex flex-col animate-in slide-in-from-top-2 duration-200">
+                <div className="relative">
+                  {isEditingJson ? (
+                    <textarea 
+                      className={`w-full h-48 p-5 bg-slate-950 border ${jsonError ? 'border-rose-500/50' : 'border-indigo-500/30'} rounded-xl font-mono text-[11px] text-indigo-400/90 leading-relaxed focus:outline-none focus:border-indigo-500 transition-colors resize-none shadow-inner`}
+                      value={jsonText}
+                      onChange={handleJsonChange}
+                      spellCheck={false}
+                    />
+                  ) : (
+                    <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-[11px] overflow-x-auto shadow-inner">
+                      <div className="flex justify-between items-center mb-4 border-b border-slate-900 pb-2">
+                         <span className="text-slate-600">application/json</span>
+                         <span className="text-[10px] text-indigo-500/50">READ-ONLY PREVIEW</span>
+                      </div>
+                      <pre className="text-indigo-400/90 leading-relaxed">
+                        {JSON.stringify(currentPayload, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  
+                  {isEditingJson && jsonError && (
+                    <div className="absolute bottom-4 right-4 flex items-center gap-2 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 rounded-md text-[10px] text-rose-400 font-mono animate-in fade-in zoom-in">
+                      <AlertCircle className="w-3 h-3" />
+                      {jsonError}
+                    </div>
+                  )}
                 </div>
-                <pre className="text-indigo-400/90 leading-relaxed">
-                  {JSON.stringify(currentPayload, null, 2)}
-                </pre>
+                {isEditingJson && (
+                  <p className="mt-2 text-[10px] text-slate-500 italic px-2">
+                    * Modifying the JSON directly will update the UI sliders and inputs above.
+                  </p>
+                )}
               </div>
             )}
           </div>
